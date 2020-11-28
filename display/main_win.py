@@ -46,7 +46,6 @@ class Main_Win(QMainWindow, Ui_MainWindow):
 
 # ******************************* Fuctions handling GUI events ************************************
 
-
     def btnFanGarage_changed(self):
         # TODO  Need to code btnFanGarage_changed to send status (Enabled / Disabled) to Sensor server
         if self.btnFanGarage.isChecked():
@@ -143,7 +142,7 @@ class Main_Win(QMainWindow, Ui_MainWindow):
             "Temp message was recieved by the GUI ***************************************")
         for key, val in msg.items():
             temp = round(float(val))
-            if key.strip() == '28-01191eedd2d2':
+            if key.strip() == '28-01191f1acd16':
                 if temp <= 34:
                     self.pbGarage.setStyleSheet(gui_style.progBarStyleCold())
                 elif temp <= 90:
@@ -160,7 +159,7 @@ class Main_Win(QMainWindow, Ui_MainWindow):
                 else:
                     self.pbOutside.setStyleSheet(gui_style.progBarStyleHot())
                 self.pbOutside.setValue(temp)
-            elif key.strip() == '28-01191f1acd16':
+            elif key.strip() == '28-01191eedd2d2':
                 if temp <= 34:
                     self.pbDog.setStyleSheet(gui_style.progBarStyleCold())
                 elif temp <= 90:
@@ -193,16 +192,20 @@ class Main_Win(QMainWindow, Ui_MainWindow):
                 if val:
                     self.lbl_Garage_Fan_State.setStyleSheet(
                         gui_style.lblStyleConnected())
+                    self.lbl_Garage_Fan_State.setText("Garage Fan\nOn")
                 else:
                     self.lbl_Garage_Fan_State.setStyleSheet(
                         gui_style.lblStyleDisconnected())
+                    self.lbl_Garage_Fan_State.setText("Garage Fan\nOff")
             if key == 'fan_dog':
                 if val:
                     self.lbl_Dog_Fan_State.setStyleSheet(
                         gui_style.lblStyleConnected())
+                    self.lbl_Dog_Fan_State.setText("Dog Fan\nOn")
                 else:
                     self.lbl_Dog_Fan_State.setStyleSheet(
                         gui_style.lblStyleDisconnected())
+                    self.lbl_Dog_Fan_State.setText("Dog Fan\nOff")
 
     @QtCore.pyqtSlot(object)
     def handleHeatControlMessages(self, msg):
@@ -220,9 +223,11 @@ class Main_Win(QMainWindow, Ui_MainWindow):
                 if val:
                     self.lbl_Dog_Heat_State.setStyleSheet(
                         gui_style.lblStyleConnected())
+                    self.lbl_Dog_Heat_State.setText("Dog Heat\nOn")
                 else:
                     self.lbl_Dog_Heat_State.setStyleSheet(
                         gui_style.lblStyleDisconnected())
+                    self.lbl_Dog_Heat_State.setText("Dog Heat\nOff")
 
     @QtCore.pyqtSlot(object)
     def handleSystemStateMessages(self, msg):
