@@ -10,11 +10,7 @@ import RPi.GPIO as GPIO
 verbose = False
 debug = True
 
-# 28-01191f1acd16   Garage
-# 28-011913ff09bb   Outside
-# 28-01191eedd2d2   Dog House
-
-broker = "192.168.1.101"
+broker = "192.168.0.75"
 broker_port = 1883
 basePath = '/sys/bus/w1/devices'
 fname = 'w1_slave'
@@ -33,18 +29,13 @@ fan_dog_state = 0
 heater_dog_state = 0
 
 # Topics
-topic_con = "garage/connection"
-topic_temp = "garage/sensor_temp"  # Depreciated
-topic_temp_garage = "garage/temp/garage"
-topic_temp_outside = "garage/temp/outside"
-topic_temp_doghouse = "garage/temp/doghouse"
-topic_fan_ctl = "garage/fan/ctl"
-topic_fan_state = "garage/fan/state"
-topic_heater_ctl = "garage/heater/ctl"
-topic_heater_state = "garage/heater/state"
-topic_system_state = "garage/system/state"
-topic_fan_enabled = "garage/fan/enabled"
-topic_heater_enabled = "garage/heater/enabled"
+topic_con = "connection"
+topic_temp = "sensor_temp"
+topic_fan_ctl = "fan_ctl"
+topic_fan_state = "fan_state"
+topic_heater_ctl = "heater_ctl"
+topic_heater_state = "heater_state"
+topic_system_state = "system_state"
 
 # 32 = green dog house fan   33 = garage/fan dog heater
 GPIO.setmode(GPIO.BOARD)
@@ -58,8 +49,8 @@ GPIO.setup(33, GPIO.OUT)
 
 def returnSystemState():
     fanState = {"fan_garage": fan_garage_state, "fan_dog": fan_dog_state}
-    fanCtl = {"fan_dog": fan_dog_enabled}
-    heaterState = {"heater_dog_state": heater_dog_state}
+    fanCtl = {"fan_garage": fan_garage_enabled, "fan_dog": fan_dog_enabled}
+    heaterState = {"heater_dog": heater_dog_state}
     heaterCtl = {"heater_dog": heater_dog_enabled}
     client.publish(topic_fan_ctl, json.dumps(fanCtl))
     client.publish(topic_fan_state, json.dumps(fanState))
@@ -68,12 +59,10 @@ def returnSystemState():
 
 
 def updateFanEnabled(msg):
-    if (debug):
-        print("In the Update Fan Enabled FUnction")
-
     for key, val in msg.items():
-        if (debug):
-            print(f"Fan Enabled key: {key} Value: {val}")
+        if debug:
+            print("UpdateFanEnabled-key: ", key)
+            print("UpdateFanEnabled-val: ", val)
         if key == "fan_garage":
             global fan_garage_enabled
             fan_garage_enabled = int(val)
@@ -83,13 +72,13 @@ def updateFanEnabled(msg):
 
 
 def updateHeaterEnabled(msg):
-    if (debug):
-        print("In the Update Fan Enabled FUnction")
-
     for key, val in msg.items():
-        if (debug):
-            print(f"Heater Enabled key: {key} Value: {val}")
+        if debug:
+            print("UpdateHeaterEnabled-key: ", key)
+            print("UpdateHeaterEnabled-val: ", val)
         if key == "heater_dog":
+            if debug:
+                print("Should be updating the heater dog enabled variable")
             global heater_dog_enabled
             heater_dog_enabled = int(val)
 
@@ -105,34 +94,22 @@ def checkTemps(msg):
     global fan_garage_state
     global heater_dog_state
     global fan_dog_state
-    global fan_dog_enabled
-    global heater_dog_enabled
-
     for key, val in msg.items():
+        if debug:
+            print('checkTemps-key: ', key)
+            print('checkTemps-val: ', val)
         temp = int(float(val))
         if key.strip() == '28-01191eedd2d2':
             if temp >= 100:
                 fan_garage_state = 1
                 # TODO  turn the fan on
-        elif key.strip() == '28-011913ff09bb':
-            if (debug):
-                print(
-                    f"Check Temps sensor Match -- Fan: {fan_dog_enabled}  --  Heater: {heater_dog_enabled} ")
-
-            # if fan_dog_enabled:
-            #     fan_dog_state = 1
-            # else:
-            #     fan_dog_state = 0
-
-            # if heater_dog_enabled:
-            #     heater_dog_state = 1
-            # else:
-            #     heater_dog_state = 0
-
+        elif key.strip() == '28-01191eedd2d2':
             if temp <= 40:
                 if heater_dog_enabled:
                     heater_dog_state = 1
-            elif temp > 45 and temp < 85:
+                else:
+                    heater_dog_state = 0
+            elif temp > 40 and temp < 85:
                 fan_dog_state = 0
                 heater_dog_state = 0
             elif temp >= 85:
@@ -144,45 +121,36 @@ def checkTemps(msg):
 
 
 def updateControls():
-    if (debug):
-        print("In the Update Controls FUnction")
-
-    fanCtl = {"fan_dog": fan_dog_enabled}
-    heaterCtl = {"heater_dog": heater_dog_enabled}
-
-    if (debug):
-        print(f"Update Controls Fan: {fanCtl}   --  Heater: {heaterCtl}")
-
+    if debug:
+        print('fan_dog_state: ', fan_dog_state)
+        print('fan_garage_state: ', fan_garage_state)
+        print('heater_dog_state: ', heater_dog_state)
     if fan_dog_state:
         GPIO.output(32, GPIO.HIGH)
         ctlState = {'fan_dog': 1}
         client.publish(topic_fan_state, json.dumps(ctlState))
-        client.publish(topic_fan_enabled, json.dumps(fanCtl))
     else:
         GPIO.output(32, GPIO.LOW)
         ctlState = {'fan_dog': 0}
         client.publish(topic_fan_state, json.dumps(ctlState))
-        client.publish(topic_fan_enabled, json.dumps(fanCtl))
 
-    # if fan_garage_state:
-    #     GPIO.output(33, GPIO.HIGH)
-    #     ctlState = {'fan_garage': 1}
-    #     client.publish(topic_fan_state, json.dumps(ctlState))
-    # else:
-    #     GPIO.output(33, GPIO.LOW)
-    #     ctlState = {'fan_garage': 0}
-    #     client.publish(topic_fan_state, json.dumps(ctlState))
+    if fan_garage_state:
+        GPIO.output(33, GPIO.HIGH)
+        ctlState = {'fan_garage': 1}
+        client.publish(topic_fan_state, json.dumps(ctlState))
+    else:
+        GPIO.output(33, GPIO.LOW)
+        ctlState = {'fan_garage': 0}
+        client.publish(topic_fan_state, json.dumps(ctlState))
 
     if heater_dog_state:
-        GPIO.output(32, GPIO.HIGH)
+        GPIO.output(33, GPIO.HIGH)
         ctlState = {'heater_dog': 1}
         client.publish(topic_heater_state, json.dumps(ctlState))
-        client.publish(topic_heater_enabled, json.dumps(heaterCtl))
     else:
-        GPIO.output(32, GPIO.LOW)
+        GPIO.output(33, GPIO.LOW)
         ctlState = {'heater_dog': 0}
         client.publish(topic_heater_state, json.dumps(ctlState))
-        client.publish(topic_heater_enabled, json.dumps(heaterCtl))
 
 
 def get_temps():
@@ -210,6 +178,8 @@ def get_temps():
                 except:
                     continue
 
+                if debug:
+                    print(f"Sensor: {d} Reads: {farenheit}")
                 dictTemps[d] = farenheit
     checkTemps(dictTemps)
     return dictTemps
@@ -223,17 +193,18 @@ def on_log(client, userdata, level, buf):
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        if (debug):
-            print("Connected to broker")
-        con_data = {"server": "connected"}
-        sys_state = {"server": 1}
+        if debug:
+            print("connected OK")
+        con_data = {server: "connected"}
+        sys_state = {server: 1}
         client.publish(topic_con, json.dumps(con_data))
         client.publish(topic_system_state, json.dumps(sys_state))
     else:
         con_state = "Bad connection Returned code=" + rc
-        if (debug):
+        if debug:
             print(con_state)
-        con_data = {"server": "disconnected"}
+
+        con_data = {server: "disconnected"}
         client.publish(topic_con, json.dumps(con_data))
         con_data = {server: con_state}
         client.publish(topic_con, json.dumps(con_data))
@@ -249,7 +220,9 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     con_state = "Bad connection Returned code=" + rc
-    con_data = {"server": "disconnected"}
+    if debug:
+        print(con_state)
+    con_data = {server: "disconnected"}
     client.publish(topic_con, json.dumps(con_data))
     con_data = {server: ConnectionError}
     client.publish(topic_con, json.dumps(con_data))
@@ -260,13 +233,11 @@ def on_message(client, userdata, msg):
 
     topic = msg.topic
     msgPayload = json.loads(msg.payload)
-
-    if (debug):
-        print(f"In On-Message  Topic: {topic} with Payload: {msgPayload}")
-
+    # DEBUG Print mqtt on_message - Currently on
+    print("Topic: ", topic)
+    print("Message: ", msgPayload)
     if topic == topic_system_state:
-        pass
-        # returnSystemState()
+        returnSystemState()
     elif topic == topic_fan_ctl:
         updateFanEnabled(msgPayload)
     elif topic == topic_heater_ctl:
@@ -293,30 +264,6 @@ client.subscribe(topic_system_state)
 
 client.loop_start()
 while 1:
-    print("loop ***************** Now")
     time.sleep(5)
     data = get_temps()
-    t_garage = 0
-    t_outside = 0
-    t_doghouse = 0
-    heaterState = {"heater_dog_state": heater_dog_state}
-    client.publish(topic_heater_state, json.dumps(heaterState))
-    for d in data:
-        if d == '28-01191f1acd16':
-            t_garage = data[d]
-            #client.publish(topic_temp_garage, data[d])
-        if d == '28-011913ff09bb':
-            t_outside = data[d]
-            #client.publish(topic_temp_outside, data[d])
-        if d == '28-01191eedd2d2':
-            t_doghouse = data[d]
-            #client.publish(topic_temp_doghouse, data[d])
-    print("Loop inner loop complete ------------------")
-    garage_status = {"temp_garage": t_garage, "temp_outside": t_outside, "temp_doghouse": t_doghouse,
-                     "heater_dog_enabled": heater_dog_enabled, "heater_dog_state": heater_dog_state}
-    print("Built the jason object")
-    client.publish(topic_system_state, json.dumps(garage_status))
-    print("End of Loop ***********")
-
-    #  All Sensors combined has been depreciated
-    #client.publish(topic_temp, json.dumps(data))
+    client.publish(topic_temp, json.dumps(data))

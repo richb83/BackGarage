@@ -8,7 +8,7 @@ import re
 import RPi.GPIO as GPIO
 
 verbose = False
-debug = True
+debug = False
 
 # 28-01191f1acd16   Garage
 # 28-011913ff09bb   Outside
@@ -223,17 +223,13 @@ def on_log(client, userdata, level, buf):
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        if (debug):
-            print("Connected to broker")
-        con_data = {"server": "connected"}
-        sys_state = {"server": 1}
+        con_data = {server: "connected"}
+        sys_state = {server: 1}
         client.publish(topic_con, json.dumps(con_data))
         client.publish(topic_system_state, json.dumps(sys_state))
     else:
         con_state = "Bad connection Returned code=" + rc
-        if (debug):
-            print(con_state)
-        con_data = {"server": "disconnected"}
+        con_data = {server: "disconnected"}
         client.publish(topic_con, json.dumps(con_data))
         con_data = {server: con_state}
         client.publish(topic_con, json.dumps(con_data))
@@ -249,7 +245,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     con_state = "Bad connection Returned code=" + rc
-    con_data = {"server": "disconnected"}
+    con_data = {server: "disconnected"}
     client.publish(topic_con, json.dumps(con_data))
     con_data = {server: ConnectionError}
     client.publish(topic_con, json.dumps(con_data))
@@ -293,30 +289,17 @@ client.subscribe(topic_system_state)
 
 client.loop_start()
 while 1:
-    print("loop ***************** Now")
     time.sleep(5)
     data = get_temps()
-    t_garage = 0
-    t_outside = 0
-    t_doghouse = 0
     heaterState = {"heater_dog_state": heater_dog_state}
     client.publish(topic_heater_state, json.dumps(heaterState))
     for d in data:
         if d == '28-01191f1acd16':
-            t_garage = data[d]
-            #client.publish(topic_temp_garage, data[d])
+            client.publish(topic_temp_garage, data[d])
         if d == '28-011913ff09bb':
-            t_outside = data[d]
-            #client.publish(topic_temp_outside, data[d])
+            client.publish(topic_temp_outside, data[d])
         if d == '28-01191eedd2d2':
-            t_doghouse = data[d]
-            #client.publish(topic_temp_doghouse, data[d])
-    print("Loop inner loop complete ------------------")
-    garage_status = {"temp_garage": t_garage, "temp_outside": t_outside, "temp_doghouse": t_doghouse,
-                     "heater_dog_enabled": heater_dog_enabled, "heater_dog_state": heater_dog_state}
-    print("Built the jason object")
-    client.publish(topic_system_state, json.dumps(garage_status))
-    print("End of Loop ***********")
+            client.publish(topic_temp_doghouse, data[d])
 
     #  All Sensors combined has been depreciated
     #client.publish(topic_temp, json.dumps(data))
